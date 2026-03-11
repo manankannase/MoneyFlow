@@ -114,13 +114,17 @@ function destroySession(?string $rawToken = null): void {
         }
     }
 
-    // Expire the cookie
+    // Expire the cookie — use same secure flag as creation
+    $isSecure = (getenv('APP_ENV') === 'production')
+             || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+             || (int) ($_SERVER['SERVER_PORT'] ?? 80) === 443;
+
     setcookie(SESSION_COOKIE_NAME, '', [
         'expires'  => time() - 3600,
         'path'     => '/',
         'httponly' => true,
         'samesite' => 'Strict',
-        'secure'   => false,
+        'secure'   => $isSecure,
     ]);
 }
 
@@ -149,13 +153,18 @@ function getClientIp(): string {
 
 /**
  * Set the session cookie with secure attributes.
+ * The 'secure' flag is enabled when the app is running behind HTTPS.
  */
 function setSessionCookie(string $rawToken): void {
+    $isSecure = (getenv('APP_ENV') === 'production')
+             || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+             || (int) ($_SERVER['SERVER_PORT'] ?? 80) === 443;
+
     setcookie(SESSION_COOKIE_NAME, $rawToken, [
         'expires'  => time() + SESSION_LIFETIME_SECONDS,
         'path'     => '/',
         'httponly' => true,
         'samesite' => 'Strict',
-        'secure'   => false,   // set to true when behind TLS
+        'secure'   => $isSecure,
     ]);
 }

@@ -47,8 +47,8 @@ require_once __DIR__ . '/../layouts/header.php';
         <?php foreach ($results as $member): ?>
             <div class="member-card">
                 <div class="member-avatar">
-                    <?php if (!empty($member['profile_photo'])): ?>
-                        <img src="/uploads/avatars/<?= h($member['profile_photo']) ?>"
+                    <?php if (!empty($member['profile_photo']) && strpos($member['profile_photo'], '/') === false && strpos($member['profile_photo'], '\\') === false): ?>
+                        <img src="/uploads/avatars/<?= h(basename($member['profile_photo'])) ?>"
                              alt="<?= h($member['account_name']) ?>'s avatar">
                     <?php else: ?>
                         <span class="avatar-placeholder"><?= h(strtoupper(substr($member['account_name'], 0, 1))) ?></span>
@@ -60,7 +60,7 @@ require_once __DIR__ . '/../layouts/header.php';
                         <p><?= h(substr($member['member_bio'], 0, 100)) ?></p>
                     <?php endif; ?>
                 </div>
-                <a href="/transfer.php?recipient=<?= urlencode($member['account_name']) ?>"
+                <a href="/transfer.php?recipient=<?= rawurlencode($member['account_name']) ?>"
                    class="btn btn-sm btn-primary">Send Money</a>
             </div>
         <?php endforeach; ?>

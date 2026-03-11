@@ -66,8 +66,8 @@ require_once __DIR__ . '/../layouts/header.php';
 
     <div class="profile-header">
         <div class="profile-avatar">
-            <?php if (!empty($session['profile_photo'])): ?>
-                <img src="/uploads/avatars/<?= h($session['profile_photo']) ?>"
+            <?php if (!empty($session['profile_photo']) && strpos($session['profile_photo'], '/') === false && strpos($session['profile_photo'], '\\') === false): ?>
+                <img src="/uploads/avatars/<?= h(basename($session['profile_photo'])) ?>"
                      alt="Profile photo">
             <?php else: ?>
                 <span class="avatar-placeholder large">

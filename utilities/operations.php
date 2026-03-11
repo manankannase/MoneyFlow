@@ -229,6 +229,10 @@ function saveAvatar(int $memberId, array $file): array {
     $destDir  = __DIR__ . '/../webroot/uploads/avatars/';
     $destPath = $destDir . $filename;
 
+    if (!is_dir($destDir)) {
+        mkdir($destDir, 0755, true);
+    }
+
     if (!move_uploaded_file($file['tmp_name'], $destPath)) {
         return ['success' => false, 'errorMsg' => 'Failed to save the uploaded file.'];
     }
