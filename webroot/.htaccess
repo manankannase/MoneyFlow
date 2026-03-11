@@ -1,0 +1,23 @@
+# MoneyFlow — Webroot .htaccess
+# URL rewriting and access control
+
+Options -Indexes -FollowSymLinks
+
+# Block direct access to hidden files
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+# Rewrite engine
+RewriteEngine On
+
+# Redirect bare index to index.php (handled by PHP)
+RewriteRule ^$ index.php [L]
+
+# Block direct access to utility includes (belt-and-suspenders — Apache conf also blocks /utilities/)
+RewriteRule ^(settings|utilities|layouts)/ - [F,L]
+
+# Remove .php extension from URLs (optional cosmetic)
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}\.php -f
+RewriteRule ^([^\.]+)$ $1.php [NC,L]
