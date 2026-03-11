@@ -22,6 +22,28 @@ RUN echo "ServerTokens Prod" >> /etc/apache2/conf-available/security.conf && \
     echo "ServerSignature Off" >> /etc/apache2/conf-available/security.conf && \
     echo "TraceEnable Off" >> /etc/apache2/conf-available/security.conf
 
+# Security: Harden PHP configuration
+RUN { \
+    echo 'expose_php = Off'; \
+    echo 'display_errors = Off'; \
+    echo 'log_errors = On'; \
+    echo 'error_log = /var/log/php_errors.log'; \
+    echo 'session.cookie_httponly = 1'; \
+    echo 'session.cookie_secure = 0'; \
+    echo 'session.cookie_samesite = Strict'; \
+    echo 'session.use_strict_mode = 1'; \
+    echo 'session.use_only_cookies = 1'; \
+    echo 'allow_url_fopen = Off'; \
+    echo 'allow_url_include = Off'; \
+    echo 'max_execution_time = 30'; \
+    echo 'max_input_time = 30'; \
+    echo 'memory_limit = 128M'; \
+    echo 'post_max_size = 10M'; \
+    echo 'upload_max_filesize = 5M'; \
+    echo 'max_file_uploads = 5'; \
+    echo 'disable_functions = exec,passthru,shell_exec,system,proc_open,popen,parse_ini_file,show_source,highlight_file'; \
+} > /usr/local/etc/php/conf.d/security.ini
+
 # Set document root
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/webroot
 

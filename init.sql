@@ -96,6 +96,7 @@ CREATE TABLE event_chronicle (
 CREATE TABLE failed_auth_attempts (
     id INT AUTO_INCREMENT PRIMARY KEY,
     ip_address VARCHAR(45) NOT NULL,
+    account_name VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_ip_address (ip_address),
     INDEX idx_created_at (created_at)
