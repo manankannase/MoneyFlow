@@ -1,0 +1,34 @@
+# =============================================================
+# MoneyFlow .dockerignore
+# =============================================================
+
+# Secrets — must not be baked into image
+.env
+.env.example
+
+# Git metadata
+.git
+.gitignore
+
+# Documentation (not needed in runtime image)
+*.md
+LICENSE
+
+# Docker files (not needed inside container)
+docker-compose.yml
+docker-compose.yaml
+.dockerignore
+
+# Database volume
+db_volume/
+
+# OS / Editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# CI/CD
+.github/
