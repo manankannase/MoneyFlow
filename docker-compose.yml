@@ -1,0 +1,83 @@
+# =============================================================
+# MoneyFlow Docker Compose — Hardened Configuration
+# =============================================================
+# NOTE: 'version' key is omitted (deprecated in modern Compose).
+# All secrets are loaded from .env file — see .env.example.
+# =============================================================
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: moneyflow-database
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+      MYSQL_USER: "${MYSQL_USER}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+    # SECURITY: Do NOT expose MySQL port to host.
+    # Only the web service needs access via the internal network.
+    volumes:
+      - db_volume:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 5s
+      retries: 10
+      interval: 10s
+      start_period: 30s
+    networks:
+      - moneyflow-net
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 256M
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: moneyflow-webserver
+    restart: always
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    volumes:
+      - ./:/var/www/html:ro
+      - ./apache.conf:/etc/apache2/sites-available/000-default.conf:ro
+      - ./webroot/uploads:/var/www/html/webroot/uploads
+    tmpfs:
+      - /tmp:noexec,nosuid,size=64M
+      - /run:noexec,nosuid,size=64M
+    environment:
+      DATABASE_HOST: "${DATABASE_HOST}"
+      DATABASE_NAME: "${DATABASE_NAME}"
+      DATABASE_USER: "${DATABASE_USER}"
+      DATABASE_PASS: "${DATABASE_PASS}"
+      HMAC_SECRET: "${HMAC_SECRET}"
+      APP_ENV: "${APP_ENV:-production}"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - moneyflow-net
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+
+networks:
+  moneyflow-net:
+    driver: bridge
+
+volumes:
+  db_volume:
