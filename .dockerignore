@@ -1,0 +1,18 @@
+# Secrets — never bake into image layers
+.env
+*.env
+
+# Git metadata
+.git
+.gitignore
+
+# Self-signed certs are COPY'd explicitly in the Dockerfile.
+# Exclude everything else that is not needed at build time.
+*.md
+*.sh
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
