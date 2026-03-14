@@ -1,0 +1,82 @@
+version: '3.8'
+
+# =============================================================================
+# SECURITY FIXES APPLIED (V3, V4, V6):
+#
+# V3/V4: All secrets are in environment variables here — no hardcoded fallbacks
+#        remain in PHP source code. Generate your own values before deployment:
+#          HMAC_SECRET:         php -r "echo bin2hex(random_bytes(32));"
+#          DATABASE_PASS /
+#          MYSQL_PASSWORD:      openssl rand -base64 24
+#          MYSQL_ROOT_PASSWORD: openssl rand -base64 24
+#
+# V6 (create_accounts): Account passwords are env-driven. Set ACCOUNT_PASS_1..5
+#        before running create_accounts.php, or it generates random ones and
+#        prints them once to stdout (they are NOT stored in source code).
+#
+# IMPORTANT: Do NOT commit this file with real secrets to git / the course zip.
+# Use a .env file (gitignored) or Docker secrets for actual deployment values.
+# =============================================================================
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: moneyflow-database
+    restart: always
+    environment:
+      # REQUIRED: Set these in a .env file (gitignored) before deploying.
+      # Generate with: openssl rand -base64 24
+      # Startup will FAIL if these are empty — there are no insecure fallbacks.
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set in .env}"
+      MYSQL_DATABASE:      "moneyflow_db"
+      MYSQL_USER:          "moneyflow_admin"
+      MYSQL_PASSWORD:      "${DATABASE_PASS:?DATABASE_PASS must be set in .env}"
+    # SECURITY FIX: MySQL port NOT exposed to host — only accessible within Docker network
+    # ports:
+    #   - "3306:3306"
+    volumes:
+      - db_volume:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./migrations.sql:/docker-entrypoint-initdb.d/migrations.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "--password=${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: moneyflow-webserver
+    restart: always
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./:/var/www/html
+      - ./apache.conf:/etc/apache2/sites-available/000-default.conf
+    environment:
+      DATABASE_HOST: db
+      DATABASE_NAME: moneyflow_db
+      DATABASE_USER: moneyflow_admin
+      # Must match MYSQL_PASSWORD above. Set via .env or shell export.
+      DATABASE_PASS: "${DATABASE_PASS:?DATABASE_PASS must be set in .env}"
+      # Generate with: php -r "echo bin2hex(random_bytes(32));"
+      HMAC_SECRET:        "${HMAC_SECRET:?HMAC_SECRET must be set in .env}"
+      # AES-256-GCM key for transfer token encryption (64 hex chars = 32 bytes)
+      # Generate with: php -r "echo bin2hex(random_bytes(32));"
+      AES_TRANSFER_KEY:   "${AES_TRANSFER_KEY:?AES_TRANSFER_KEY must be set in .env}"
+      # FIX V6: Account passwords — set before running create_accounts.php
+      ACCOUNT_PASS_1: "${ACCOUNT_PASS_1:-}"
+      ACCOUNT_PASS_2: "${ACCOUNT_PASS_2:-}"
+      ACCOUNT_PASS_3: "${ACCOUNT_PASS_3:-}"
+      ACCOUNT_PASS_4: "${ACCOUNT_PASS_4:-}"
+      ACCOUNT_PASS_5: "${ACCOUNT_PASS_5:-}"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  db_volume:

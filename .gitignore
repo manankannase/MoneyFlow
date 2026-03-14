@@ -1,0 +1,16 @@
+# Environment secrets
+.env
+*.env
+
+# SSL certificate private key — never commit
+certs/selfsigned.key
+certs/selfsigned.crt
+
+# Uploaded user files
+webroot/uploads/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
