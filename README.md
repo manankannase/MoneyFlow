@@ -15,6 +15,15 @@
 > All five team members have contributed equally to this project and share joint responsibility for its development and all associated activities.
 
 
+| Member | Domain | Lines of Code |
+|--------|--------|------:|
+| **Manan Kannasey** | Authentication & Security | **1,094** |
+| **Hemang Ranga** | DevOps & Core Operations | **1,017** |
+| **Rohit B** | Database, Logging & Docs | **1,089** |
+| **Yash Vardhan** | Frontend & CSS | **1,196** |
+| **Deependra Singh** | Transactions & JavaScript | **1,113** |
+
+
 ---
 
 ## Table of Contents
