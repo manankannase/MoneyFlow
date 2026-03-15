@@ -127,8 +127,9 @@ function initializeUI() {
     if (transferErrorPanel) transferErrorPanel.style.display = 'none';
 
     // Auto-dismiss alerts after 5 seconds.
-    // Exclude #confirmPanel — it is controlled exclusively by initializeTransferForm.
-    const alerts = document.querySelectorAll('.alert:not(#confirmPanel)');
+    // Exclude #confirmPanel and #transferErrorPanel — both are controlled exclusively
+    // by initializeTransferForm. Removing them from the DOM would break JS-side error display.
+    const alerts = document.querySelectorAll('.alert:not(#confirmPanel):not(#transferErrorPanel)');
     alerts.forEach(alert => {
         setTimeout(() => {
             alert.style.opacity = '0';

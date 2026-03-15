@@ -9,7 +9,7 @@
             <div class="footer-content">
                 <p class="footer-text">&copy; <?php echo date('Y'); ?> MoneyFlow - Secure Fund Transfer Platform</p>
                 <p class="footer-info">
-                    Secure transactions powered by AES-256-GCM &amp; Argon2id
+                    Secure transactions powered by Team_9
                 </p>
             </div>
         </footer>

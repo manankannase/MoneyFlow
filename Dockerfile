@@ -1,8 +1,8 @@
 FROM php:8.2-apache
 
-# Install system dependencies for GD image processing and healthcheck
+# Install system dependencies for GD image processing, healthcheck, and TLS cert generation
 RUN apt-get update && apt-get install -y \
-    libpng-dev libjpeg62-turbo-dev libfreetype6-dev libwebp-dev curl \
+    libpng-dev libjpeg62-turbo-dev libfreetype6-dev libwebp-dev curl openssl \
     && rm -rf /var/lib/apt/lists/*
 
 # Install required PHP extensions (including GD for secure image re-encoding)
@@ -21,11 +21,16 @@ RUN a2enmod rewrite headers ssl
 RUN sed -i 's/^ServerTokens .*/ServerTokens Prod/' /etc/apache2/conf-available/security.conf \
     && sed -i 's/^ServerSignature .*/ServerSignature Off/' /etc/apache2/conf-available/security.conf
 
-# Copy self-signed SSL certificate into the image
-RUN mkdir -p /etc/apache2/ssl
-COPY certs/selfsigned.crt /etc/apache2/ssl/selfsigned.crt
-COPY certs/selfsigned.key /etc/apache2/ssl/selfsigned.key
-RUN chmod 600 /etc/apache2/ssl/selfsigned.key
+# SECURITY: Generate self-signed TLS certificate at build time for HTTPS
+# This ensures all traffic is encrypted without needing pre-built cert files in the repo
+RUN mkdir -p /etc/apache2/ssl && \
+    openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+    -keyout /etc/apache2/ssl/selfsigned.key \
+    -out /etc/apache2/ssl/selfsigned.crt \
+    -subj "/C=US/ST=State/L=City/O=MoneyFlow/OU=Dev/CN=localhost" \
+    -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" && \
+    chmod 600 /etc/apache2/ssl/selfsigned.key && \
+    chmod 644 /etc/apache2/ssl/selfsigned.crt
 
 # Set document root
 ENV APACHE_DOCUMENT_ROOT /var/www/html/webroot
