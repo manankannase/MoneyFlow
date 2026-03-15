@@ -27,9 +27,12 @@ $searchResults = [];
 $rateLimitError = '';
 
 if (strlen($searchTerm) >= 1) {
+    // SECURITY FIX: Per-IP rate limiting on search (max 10 per minute)
     $clientIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
     $dbConn = getPDOConnection();
 
+    // Atomic rate limit: count + insert in one statement — eliminates TOCTOU race.
+    // If COUNT >= 10 the WHERE subquery is false, nothing is inserted, rowCount() === 0.
     $rateLimitStmt = $dbConn->prepare(
         'INSERT INTO search_rate_limit (ip_address)
          SELECT :ip FROM DUAL
@@ -44,6 +47,7 @@ if (strlen($searchTerm) >= 1) {
     if ($rateLimitStmt->rowCount() === 0) {
         $rateLimitError = 'Too many searches. Please wait a moment before trying again.';
     } else {
+        // SECURITY FIX: Limit results to 5 per search (reduces UNION-style data harvesting)
         $searchResults = discoverMembers($searchTerm, 5);
     }
 }

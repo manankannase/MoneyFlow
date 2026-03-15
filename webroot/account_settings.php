@@ -1,6 +1,7 @@
 <?php
 /**
  * Account Settings Page
+ * Allows members to update their profile and change password
  */
 
 define('APP_BASE', dirname(__DIR__));
@@ -25,6 +26,7 @@ chroniclePageAccess('account_settings.php', $session);
 $successMsg = '';
 $errorMsg   = '';
 
+// Success message after password-change redirect
 if (isset($_GET['pwd_changed'])) {
     $successMsg = 'Password changed successfully!';
 }
@@ -58,6 +60,7 @@ if (isset($_POST['update_profile'])) {
             $updateResult = modifyMemberProfile($session['member_id'], $updateData);
             if ($updateResult['success']) {
                 $successMsg = 'Profile updated successfully!';
+                // Refresh profile
                 $memberProfile = fetchMemberProfile($session['member_id']);
             } else {
                 $errorMsg = $updateResult['errorMsg'];
@@ -66,6 +69,7 @@ if (isset($_POST['update_profile'])) {
     }
 }
 
+// Handle password change
 if (isset($_POST['change_password'])) {
     $csrfToken = $_POST['csrf_token'] ?? '';
     if (!validateCSRFToken($csrfToken)) {
@@ -80,6 +84,8 @@ if (isset($_POST['change_password'])) {
         } else {
             $changeResult = updateSecretKey($session['member_id'], $currentSecret, $newSecret);
             if ($changeResult['success']) {
+                // updateSecretKey() deletes all sessions for security (invalidates stolen tokens).
+                // Re-create a fresh session so the user stays logged in after the change.
                 initializeNewSession($session['member_id']);
                 header('Location: /account_settings.php?pwd_changed=1');
                 exit;
@@ -90,6 +96,7 @@ if (isset($_POST['change_password'])) {
     }
 }
 
+// Handle avatar upload
 if (isset($_POST['upload_avatar'])) {
     $csrfToken = $_POST['csrf_token'] ?? '';
     if (!validateCSRFToken($csrfToken)) {
@@ -146,6 +153,7 @@ require_once APP_BASE . '/layouts/header.php';
         </form>
     </div>
 
+    <!-- Avatar Upload -->
     <div class="settings-card">
         <h2 class="card-title">Profile Photo</h2>
         
@@ -170,6 +178,7 @@ require_once APP_BASE . '/layouts/header.php';
         </form>
     </div>
 
+    <!-- Change Password -->
     <div class="settings-card">
         <h2 class="card-title">Change Password</h2>
         

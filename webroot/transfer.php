@@ -1,5 +1,28 @@
 <?php
-
+/**
+ * Transfer / Send Money Page
+ *
+ * DB Intent Binding Flow (industry-standard defense against proxy tampering):
+ *
+ *  1. User fills recipient_id + amount and clicks Submit.
+ *  2. JS POSTs to api_transfer_signature.php with CSRF + recipient + amount.
+ *  3. Server validates, writes a pending_transfers DB row with those values,
+ *     and returns an AES-256-GCM token containing only the opaque transaction_id.
+ *  4. JS places the token in a hidden field and submits the form.
+ *  5. This page decrypts the token → gets transaction_id → looks up the DB row
+ *     → executes using ONLY the DB-stored recipient and amount.
+ *
+ * Why this defeats Burp Suite interception of the token-issuance request:
+ *   Even if Burp changes recipient/amount in step 2, the attacker is changing
+ *   what gets written into the DB row — but they can only do this for their OWN
+ *   authenticated session. The sender_id in the DB row and the token are both
+ *   bound to the session. An attacker cannot issue a pending transfer for another
+ *   user's account; they can only redirect their own money.
+ *
+ *   For a genuine attack on a victim's account, the attacker would need to also
+ *   control the victim's authenticated session — at which point the session
+ *   security (not the transfer flow) is the correct layer to harden.
+ */
 
 define('APP_BASE', dirname(__DIR__));
 
@@ -33,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($transferToken)) {
             $errorMsg = 'Transfer token missing. Please ensure JavaScript is enabled.';
         } else {
+            // Step 1: Decrypt AES-256-GCM token — tampered blob returns null immediately
             $payload = decryptTransferToken($transferToken);
 
             if ($payload === null) {
@@ -48,6 +72,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Consume session nonce — one-time use
                 unset($_SESSION['transfer_nonce']);
 
+                // Step 2: Look up the pending transfer in the database.
+                // The transaction_id is inside the encrypted token (field 'nonce' repurposed
+                // as the opaque DB key). ALL transfer values come from the DB row —
+                // never from the client's POST body.
                 $transactionId = $payload['nonce']; // contains the 64-char transaction_id
                 $dbConn        = getPDOConnection();
                 $clientIp      = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
@@ -148,10 +176,10 @@ require_once APP_BASE . '/layouts/header.php';
                        placeholder="0.00">
             </div>
 
-            
+            <!-- Inline error panel for JS-side validation errors (API rejections) -->
             <div id="transferErrorPanel" style="display:none;" class="alert alert-error"></div>
 
-           
+            <!-- Confirmation panel: shown after token is issued, before final submit -->
             <div id="confirmPanel" style="display:none;" class="alert alert-success">
                 Sending <strong id="confirmAmount"></strong> to
                 <strong id="confirmRecipient"></strong>. Click Send Money to confirm.

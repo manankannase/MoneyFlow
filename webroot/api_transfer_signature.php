@@ -3,6 +3,30 @@
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
 
+/**
+ * API Endpoint: Create Pending Transfer (DB Intent Binding)
+ *
+ * Industry-standard defense against proxy tampering (Burp Suite, MITM):
+ *
+ * OLD approach (vulnerable):
+ *   Client sends recipient + amount → server encrypts them → client sends blob back.
+ *   Attacker intercepts THIS request, changes recipient/amount → server issues a valid
+ *   token for the tampered values → transfer executes with attacker's values.
+ *
+ * NEW approach (DB intent binding):
+ *   Client sends recipient + amount → server validates and writes a pending_transfers
+ *   row in the database → returns only an opaque transaction_id to the client.
+ *   At execution, server looks up the transaction_id in the DB and uses ONLY the
+ *   DB-stored values. The client never sends recipient or amount again.
+ *
+ *   What can Burp tamper with?
+ *     - The transaction_id → a random UUID, changing it fails the DB lookup or
+ *       points to a different sender's record (sender_id check rejects it).
+ *     - Nothing else — recipient and amount are not in the final POST at all.
+ *
+ *   The AES-256-GCM token is still used as an additional layer: the transaction_id
+ *   is encrypted inside the token, so it cannot be swapped for another user's ID.
+ */
 
 define('APP_BASE', dirname(__DIR__));
 
@@ -71,6 +95,13 @@ if (!$recipient) {
     exit;
 }
 
+// -----------------------------------------------------------------------
+// SECURITY FIX A2: Rate limit pending transfer creation (max 10 per 5 min per user).
+// The check and insert are atomic — a single INSERT ... SELECT statement reads
+// the count and inserts in one operation, eliminating the TOCTOU race where
+// concurrent requests could all pass a separate COUNT check and each insert.
+// rowCount() === 0 means the WHERE subquery saw >= 10 rows and blocked the insert.
+// -----------------------------------------------------------------------
 $dbConn = getPDOConnection();
 
 $transactionId = bin2hex(random_bytes(32)); // 64-char opaque ID
@@ -106,15 +137,20 @@ try {
     exit;
 }
 
+// rowCount() === 0 means the rate limit subquery blocked the insert
 if ($insertStmt->rowCount() === 0) {
     http_response_code(429);
     echo json_encode(['error' => 'Too many transfer requests. Please wait before trying again.']);
     exit;
 }
 
-
+// Store the transaction_id in session — this is what the token's nonce field carries,
+// so the check in transfer.php (hash_equals session vs token nonce) will match correctly.
+// The DB 'used' flag is the primary anti-replay guard; this is a secondary session guard.
 $_SESSION['transfer_nonce'] = $transactionId;
 
+// Wrap the transaction_id in an AES-256-GCM token so the client cannot swap
+// one user's transaction_id for another's. The token binds txn_id to sender_id.
 try {
     $token = encryptTransferToken(
         $recipientId,           // stored in token for display/mismatch check only
