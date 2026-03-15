@@ -14,6 +14,13 @@
 
 > All five team members have contributed equally to this project and share joint responsibility for its development and all associated activities.
 
+| Member | Domain | Lines of Code |
+|--------|--------|------:|
+| **member_1** | Authentication & Security | **1,094** |
+| **member_2** | DevOps & Core Operations | **1,017** |
+| **member_3** | Database, Logging & Docs | **1,089** |
+| **member_4** | Frontend & CSS | **1,196** |
+| **member_5** | Transactions & JavaScript | **1,113** |
 
 ---
 
