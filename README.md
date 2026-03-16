@@ -348,8 +348,8 @@ docker compose exec web php /var/www/html/create_accounts.php
 ```
 
 ### Access
-- **HTTP**: `http://localhost:8080` (auto-redirects to HTTPS)
-- **HTTPS**: `https://localhost:8443` (self-signed certificate — accept browser warning)
+- **HTTP**: `http://localhost` (auto-redirects to HTTPS)
+- **HTTPS**: `https://localhost` (self-signed certificate — accept browser warning)
 
 ### Stop / Reset
 
@@ -476,15 +476,6 @@ The `db` container isn't ready yet. Run `docker compose ps` and wait for the `db
 ```bash
 docker compose ps
 docker compose exec web php /var/www/html/create_accounts.php
-```
-
-**Port already in use**
-
-Change the host port mapping in `docker-compose.yml`:
-```yaml
-ports:
-  - "9080:80"
-  - "9443:443"
 ```
 
 **Permission denied on uploads**
