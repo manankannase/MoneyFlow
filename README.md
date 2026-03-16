@@ -110,6 +110,7 @@ This means:
 - Every page access recorded to `event_chronicle` table
 - Captures: member ID, account name, page path, IP address, User-Agent, timestamp
 - Immutable records — no update/delete by application user
+- Automatic retention: logs older than 90 days are purged daily
 
 ### HTTP Security Headers
 | Header | Value |
@@ -266,6 +267,7 @@ Expired rows are deleted automatically:
 - Avatar attempts: every 10 minutes
 - Search limits: every minute
 - Registration attempts: every hour
+- Activity logs (`event_chronicle`): every day (rows older than 90 days)
 
 ---
 
@@ -371,6 +373,56 @@ docker compose logs -f db    # MySQL logs
 ```bash
 docker compose exec db mysql -u moneyflow_admin -p moneyflow_db
 ```
+
+### Accessing Activity Logs
+
+Activity logs are stored in the `event_chronicle` table. Connect to the database and run SQL queries:
+
+```bash
+docker compose exec db mysql -u moneyflow_admin -p moneyflow_db
+```
+
+**View all recent activity (newest first):**
+```sql
+SELECT account_name, page_path, ip_address, access_timestamp
+FROM event_chronicle
+ORDER BY access_timestamp DESC
+LIMIT 100;
+```
+
+**Filter by username:**
+```sql
+SELECT page_path, ip_address, access_timestamp
+FROM event_chronicle
+WHERE account_name = 'player1'
+ORDER BY access_timestamp DESC;
+```
+
+**Filter by IP address:**
+```sql
+SELECT account_name, page_path, access_timestamp
+FROM event_chronicle
+WHERE ip_address = '192.168.1.1'
+ORDER BY access_timestamp DESC;
+```
+
+**Filter by page (e.g. all login attempts):**
+```sql
+SELECT account_name, ip_address, access_timestamp
+FROM event_chronicle
+WHERE page_path LIKE '%signin%'
+ORDER BY access_timestamp DESC;
+```
+
+**Filter by date range:**
+```sql
+SELECT account_name, page_path, ip_address, access_timestamp
+FROM event_chronicle
+WHERE access_timestamp BETWEEN '2025-01-01' AND '2025-01-31'
+ORDER BY access_timestamp DESC;
+```
+
+> Logs are retained for **90 days**. Entries older than 90 days are automatically purged daily by a MySQL scheduled event.
 
 ---
 

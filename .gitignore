@@ -1,10 +1,7 @@
 # Environment secrets
 .env
 *.env
-
-# SSL certificate private key — never commit
-certs/selfsigned.key
-certs/selfsigned.crt
+.claude/
 
 # Uploaded user files
 webroot/uploads/

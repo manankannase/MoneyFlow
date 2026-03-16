@@ -79,6 +79,13 @@ CREATE TABLE failed_auth_attempts (
     INDEX idx_created_at (created_at)
 );
 
+-- Auto-clean old activity logs (older than 90 days)
+CREATE EVENT clean_old_activity_logs
+ON SCHEDULE EVERY 1 DAY
+DO
+    DELETE FROM event_chronicle
+    WHERE access_timestamp < DATE_SUB(NOW(), INTERVAL 90 DAY);
+
 -- Auto-clean old failed attempts (older than 1 day)
 CREATE EVENT clean_old_failures
 ON SCHEDULE EVERY 1 HOUR
