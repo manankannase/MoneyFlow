@@ -25,7 +25,7 @@ define('PASSWORD_OPTIONS', ['memory_cost' => 65536, 'time_cost' => 4, 'threads' 
 // Rate limiting parameters
 define('MAX_AUTH_ATTEMPTS', 5);            // per (IP + username) within the IP window
 define('MAX_USERNAME_ATTEMPTS', 10);       // per username globally (catches IP rotation)
-define('AUTH_IP_WINDOW', 900);             // 15 min cooldown per (IP + account)
+define('AUTH_IP_WINDOW', 7200);            // 2 hr cooldown per (IP + account)
 define('AUTH_ACCOUNT_LOCKOUT_WINDOW', 21600); // 6 hr lockout per account after global threshold
 
 /**

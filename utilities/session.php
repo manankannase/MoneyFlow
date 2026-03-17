@@ -17,7 +17,7 @@ require_once __DIR__ . '/../settings/db_config.php';
 define('SESSION_TIMEOUT', 1800);
 // Absolute session lifetime — session is force-expired after this regardless of activity.
 // Prevents a stolen token from staying valid forever via constant keep-alive requests.
-define('SESSION_ABSOLUTE_LIFETIME', 18000); // 5 hours
+define('SESSION_ABSOLUTE_LIFETIME', 7200); // 2 hours
 define('SESSION_COOKIE_LABEL', 'MONEYFLOW_AUTH');
 
 /**
