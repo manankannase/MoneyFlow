@@ -21,6 +21,18 @@ if ($session) {
     exit;
 }
 
+// FIX #21: Server-side math CAPTCHA — no external CDN/API needed.
+// Generates a random addition question; answer stored in PHP session only
+// (never sent to client), so an attacker cannot compute it from page source.
+// Note: validateActiveSession() above always calls session_start(), so $_SESSION
+// is already available here — no explicit session_start() needed.
+if (empty($_SESSION['captcha_answer']) || empty($_SESSION['captcha_question'])) {
+    $a = random_int(1, 15);
+    $b = random_int(1, 15);
+    $_SESSION['captcha_answer']   = $a + $b;
+    $_SESSION['captcha_question'] = "What is {$a} + {$b}?";
+}
+
 $errorMsg = '';
 $regCount  = 0;
 
@@ -30,21 +42,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!validateCSRFToken($csrfToken)) {
         $errorMsg = 'Security validation failed. Please try again.';
     } else {
-        $accountId = trim($_POST['account_id'] ?? '');
-        $emailAddr = trim($_POST['email_addr'] ?? '');
-        $secretKey = $_POST['secret_key'] ?? '';
-
-        $registrationResult = createMemberAccount($accountId, $emailAddr, $secretKey);
-
-        if ($registrationResult['success']) {
-            chroniclePageAccess('signup.php (success)', null);
-            header('Location: /signin.php?signup_done=1');
-            exit;
+        // FIX #21: Validate CAPTCHA before doing anything else.
+        // Use == (not ===) because form input is a string; intval converts safely.
+        $captchaInput = intval($_POST['captcha_answer'] ?? -1);
+        if ($captchaInput !== (int) $_SESSION['captcha_answer']) {
+            $errorMsg = 'Incorrect CAPTCHA answer. Please try again.';
+            // Regenerate so the same question cannot be replayed
+            $a = random_int(1, 15);
+            $b = random_int(1, 15);
+            $_SESSION['captcha_answer']   = $a + $b;
+            $_SESSION['captcha_question'] = "What is {$a} + {$b}?";
         } else {
-            $errorMsg = $registrationResult['errorMsg'];
-            // Detect rate limit hit to disable the submit button
-            if (str_contains($errorMsg, 'limit reached')) {
-                $regCount = 5;
+            // Consumed — regenerate immediately so the same answer cannot be replayed
+            $a = random_int(1, 15);
+            $b = random_int(1, 15);
+            $_SESSION['captcha_answer']   = $a + $b;
+            $_SESSION['captcha_question'] = "What is {$a} + {$b}?";
+
+            $accountId = trim($_POST['account_id'] ?? '');
+            $emailAddr = trim($_POST['email_addr'] ?? '');
+            $secretKey = $_POST['secret_key'] ?? '';
+
+            $registrationResult = createMemberAccount($accountId, $emailAddr, $secretKey);
+
+            if ($registrationResult['success']) {
+                chroniclePageAccess('signup.php (success)', null);
+                header('Location: /signin.php?signup_done=1');
+                exit;
+            } else {
+                $errorMsg = $registrationResult['errorMsg'];
+                // Detect rate limit hit to disable the submit button
+                if (str_contains($errorMsg, 'limit reached')) {
+                    $regCount = 5;
+                }
             }
         }
     }
@@ -53,7 +83,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Log page access
 chroniclePageAccess('signup.php', null);
 
-$csrfToken = produceCSRFToken();
+$csrfToken       = produceCSRFToken();
+$captchaQuestion = $_SESSION['captcha_question'];
 
 $pageTitle = 'Create Account';
 require_once APP_BASE . '/layouts/header.php';
@@ -94,6 +125,16 @@ require_once APP_BASE . '/layouts/header.php';
                     <button type="button" class="password-toggle">Show</button>
                 </div>
                 <small class="form-hint">Min 8 chars: uppercase, lowercase, digit, special char</small>
+            </div>
+
+            <!-- FIX #21: Math CAPTCHA — prevents automated account creation via VPN rotation -->
+            <div class="form-group">
+                <label for="captcha_answer" class="form-label">
+                    Security Check: <?php echo escapeForHTML($captchaQuestion); ?>
+                </label>
+                <input type="number" id="captcha_answer" name="captcha_answer"
+                       class="form-input" required min="0" max="30"
+                       placeholder="Enter your answer" autocomplete="off">
             </div>
 
             <button type="submit" class="btn btn-primary btn-full"

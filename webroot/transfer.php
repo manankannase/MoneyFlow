@@ -31,7 +31,8 @@ require_once APP_BASE . '/utilities/session.php';
 require_once APP_BASE . '/utilities/operations.php';
 require_once APP_BASE . '/utilities/validation.php';
 require_once APP_BASE . '/utilities/activity_log.php';
-require_once APP_BASE . '/settings/db_config.php';
+// db_config.php is pulled in transitively via session.php → db_config.php,
+// so getPDOConnection() is available without an extra require here.
 
 applySecurityHeaders();
 
@@ -42,6 +43,91 @@ if (!$session) {
 }
 
 chroniclePageAccess('transfer.php', $session);
+
+// FIX #3: Step-up re-authentication for financial operations.
+// OWASP ASVS V2.2.1 / PCI DSS 8.4: high-value actions require recent password
+// confirmation even when the session is valid. A session cookie found on a
+// shared machine or via XSS must NOT be sufficient to drain the account.
+//
+// Step-up is valid for 15 minutes. After that, password must be re-entered.
+define('STEPUP_WINDOW', 900); // 15 minutes
+
+$stepupError    = '';
+$stepupVerified = isset($_SESSION['stepup_verified_at'])
+    && (time() - (int) $_SESSION['stepup_verified_at']) < STEPUP_WINDOW;
+
+// Handle step-up form POST
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['stepup_submit'])) {
+    if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
+        $stepupError = 'Security validation failed.';
+    } else {
+        $stepupPassword = $_POST['stepup_password'] ?? '';
+        // Re-verify password against stored hash (reuses authenticateCredentials logic
+        // but we only need the hash check — fetch hash directly to avoid logging a
+        // "failed attempt" for a legitimate user doing step-up)
+        $dbConn = getPDOConnection();
+        $hashQuery = $dbConn->prepare(
+            'SELECT password_hash FROM members WHERE id = :id LIMIT 1'
+        );
+        $hashQuery->execute([':id' => $session['member_id']]);
+        $memberRecord = $hashQuery->fetch();
+
+        if ($memberRecord && password_verify($stepupPassword, $memberRecord['password_hash'])) {
+            $_SESSION['stepup_verified_at'] = time();
+            $stepupVerified = true;
+            // Redirect to GET so refreshing does not re-submit the password form
+            header('Location: /transfer.php' . (isset($_GET['to']) ? '?to=' . (int)$_GET['to'] : ''));
+            exit;
+        } else {
+            $stepupError = 'Incorrect password. Please try again.';
+        }
+    }
+}
+
+// If step-up not verified, show the password confirmation form and stop here
+if (!$stepupVerified) {
+    $csrfToken = produceCSRFToken();
+    $pageTitle  = 'Confirm Identity';
+    require_once APP_BASE . '/layouts/header.php';
+    ?>
+    <div class="transfer-container">
+        <div class="transfer-card">
+            <h2 class="card-title">Confirm Your Identity</h2>
+            <p class="text-muted" style="margin-bottom:1rem;">
+                For your security, please re-enter your password before sending money.
+                This confirmation is valid for 15 minutes.
+            </p>
+
+            <?php if ($stepupError): ?>
+                <div class="alert alert-error"><?php echo escapeForHTML($stepupError); ?></div>
+            <?php endif; ?>
+
+            <form method="POST" action="/transfer.php<?php echo isset($_GET['to']) ? '?to=' . (int)$_GET['to'] : ''; ?>">
+                <input type="hidden" name="csrf_token" value="<?php echo escapeForHTML($csrfToken); ?>">
+                <input type="hidden" name="stepup_submit" value="1">
+
+                <div class="form-group">
+                    <label for="stepup_password" class="form-label">Password</label>
+                    <div class="password-container">
+                        <input type="password" id="stepup_password" name="stepup_password"
+                               class="form-input" required maxlength="72" autofocus
+                               placeholder="Enter your current password">
+                        <button type="button" class="password-toggle">Show</button>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full">Confirm &amp; Continue</button>
+            </form>
+
+            <div class="form-footer">
+                <a href="/dashboard.php" class="link">Cancel — go to Dashboard</a>
+            </div>
+        </div>
+    </div>
+    <?php
+    require_once APP_BASE . '/layouts/footer.php';
+    exit;
+}
 
 $errorMsg   = '';
 $successMsg = '';

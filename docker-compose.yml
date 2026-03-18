@@ -23,6 +23,12 @@ services:
     image: mysql:8.0
     container_name: moneyflow-database
     restart: always
+    # FIX #13: Limit DB resource consumption
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
     environment:
       # REQUIRED: Set these in a .env file (gitignored) before deploying.
       # Generate with: openssl rand -base64 24
@@ -51,9 +57,18 @@ services:
       dockerfile: Dockerfile
     container_name: moneyflow-webserver
     restart: always
+    # FIX #12: Map host ports to the new unprivileged container ports (8080/8443)
+    # so Apache can run as www-data instead of root. External behaviour is unchanged.
     ports:
-      - "80:80"
-      - "443:443"
+      - "80:8080"
+      - "443:8443"
+    # FIX #13: Resource limits prevent CPU/memory exhaustion attacks
+    # (e.g. flooding Argon2id hashing at 64 MB per hash request).
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
     volumes:
       - ./:/var/www/html
       - ./apache.conf:/etc/apache2/sites-available/000-default.conf

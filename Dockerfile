@@ -56,23 +56,47 @@ RUN rm -f /var/www/html/webroot/test_hash.php
 # is always present in the avatars upload directory.
 RUN printf 'php_flag engine off\nOptions -ExecCGI\nAddType text/plain .php .php3 .php4 .php5 .phtml .phar\n'     > /var/www/html/webroot/uploads/avatars/.htaccess
 
-# Disable dangerous PHP shell-execution functions.
-# If a zero-day in GD, PDO, or any extension ever allowed arbitrary code
-# injection, these functions would give an attacker a full OS shell.
-# Removing them means PHP can still run normally but cannot spawn processes.
-RUN printf "disable_functions = system,exec,shell_exec,passthru,proc_open,popen,curl_exec,curl_multi_exec,parse_ini_file,show_source,phpinfo\nexpose_php = Off\n" \
-    > /usr/local/etc/php/conf.d/security-hardening.ini
+# FIX #10: Restrict PHP file access to only the directories it needs.
+# Without open_basedir, PHP can read /etc/passwd, /proc/self/environ (which
+# contains DB_PASS and HMAC_SECRET), and Apache config files if a code-exec
+# vulnerability is ever found.
+#
+# FIX #24: Expanded disable_functions — added mail (spam relay), pcntl_exec
+# (process execution), dl (dynamic extension loading), putenv (can modify
+# LD_PRELOAD for shared-library hijacking), proc_nice, proc_get_status.
+RUN printf "\
+disable_functions = system,exec,shell_exec,passthru,proc_open,popen,\
+curl_exec,curl_multi_exec,parse_ini_file,show_source,phpinfo,\
+mail,pcntl_exec,dl,putenv,proc_nice,proc_get_status\n\
+expose_php = Off\n\
+open_basedir = /var/www/html:/tmp\n\
+" > /usr/local/etc/php/conf.d/security-hardening.ini
 
-EXPOSE 80 443
+EXPOSE 8080 8443
 
-# FIX #10: Apache requires root to bind ports 80/443 (privileged ports < 1024).
-# The master process starts as root then drops worker privileges to www-data
-# automatically via the User/Group directives in apache2.conf.
-# Mitigation: file ownership and permissions are tightly scoped (www-data for
-# uploads only), and directory traversal outside webroot/ is denied in apache.conf.
+# FIX #12: Run Apache on unprivileged ports 8080/8443 so the container can
+# run as www-data instead of root. docker-compose maps host:80→container:8080
+# and host:443→container:8443, so external behaviour is unchanged.
+# Overwrite ports.conf to only listen on unprivileged ports.
+RUN printf "Listen 8080\n<IfModule ssl_module>\n    Listen 8443\n</IfModule>\n" \
+    > /etc/apache2/ports.conf
 
-# FIX #11: Container health check — verifies HTTPS is serving responses.
+# Grant www-data the access it needs before we drop root:
+#   selfsigned.key — generated above with chmod 600 (root-only). Changing
+#                    ownership to www-data keeps it unreadable by other users
+#                    while allowing Apache to load it.
+#   /var/run/apache2 — Apache writes its PID file here on startup.
+#   /var/log/apache2 — Apache writes access/error logs here.
+# Without these, apache2-foreground fails immediately when run as www-data.
+RUN chown www-data:www-data /etc/apache2/ssl/selfsigned.key \
+    && chown -R www-data:www-data /var/run/apache2 /var/log/apache2
+
+# Drop to www-data for all subsequent layers and the container entrypoint.
+# Apache worker processes already ran as www-data; now the master process does too.
+USER www-data
+
+# FIX #11: Container health check — updated port to match the new internal 8443.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl -fsk https://localhost/ -o /dev/null || exit 1
+    CMD curl -fsk https://localhost:8443/ -o /dev/null || exit 1
 
 CMD ["apache2-foreground"]

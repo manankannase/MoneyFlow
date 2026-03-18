@@ -163,7 +163,10 @@ function applySecurityHeaders(): void {
         "Content-Security-Policy: default-src 'self'; " .
         "script-src 'self'; " .
         "style-src 'self'; " .
-        "img-src 'self' data:; " .
+        // FIX #22: Removed data: from img-src — profile photos are real file URLs,
+        // not data: URIs. data: in img-src enables CSS-based data exfiltration via
+        // background-image: url('data:...') if a CSS injection point is ever found.
+        "img-src 'self'; " .
         "font-src 'self'; " .
         "connect-src 'self'; " .
         "frame-ancestors 'none'; " .
