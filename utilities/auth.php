@@ -252,67 +252,77 @@ function authenticateCredentials(string $accountId, string $secretKey): array {
     ];
 }
 
+
 /**
- * Change member's password.
- * Requires verification of current password.
+ * Admin bulk-seeding account creator — CLI only.
  *
- * @param int    $memberId Member ID
- * @param string $currentSecret Current password
- * @param string $newSecret New password
- * @return array ['success' => bool, 'errorMsg' => string|null]
+ * Bypasses the per-IP registration rate limit and password-strength validation
+ * so that the deployment seed script (create_accounts.php) can insert all
+ * course accounts in one run.
+ *
+ * SECURITY: This function hard-aborts if called outside CLI context so it
+ * cannot be reached via any HTTP request, regardless of how it is invoked.
+ *
+ * @param string $accountId Username
+ * @param string $emailAddr Email address
+ * @param string $secretKey Plain-text password (will be Argon2id-hashed)
+ * @return array ['success' => bool, 'errorMsg' => string|null, 'memberId' => int|null]
  */
-function updateSecretKey(int $memberId, string $currentSecret, string $newSecret): array {
-    // Validate new password strength
-    $validation = validateSecretKey($newSecret);
-    if (!$validation['isValid']) {
-        return ['success' => false, 'errorMsg' => $validation['errorMsg']];
+function createMemberAccountAdmin(string $accountId, string $emailAddr, string $secretKey): array {
+    // Hard gate — this function must never be reachable over HTTP.
+    if (php_sapi_name() !== 'cli') {
+        http_response_code(403);
+        exit('Forbidden');
     }
 
     $dbConn = getPDOConnection();
 
-    // Fetch current password hash
-    $memberQuery = $dbConn->prepare(
-        'SELECT password_hash FROM members WHERE id = :id LIMIT 1'
+    // Validate account identifier format only (no rate-limit, no password-strength check)
+    $accountIdValidation = validateAccountId($accountId);
+    if (!$accountIdValidation['isValid']) {
+        return ['success' => false, 'errorMsg' => $accountIdValidation['errorMsg'], 'memberId' => null];
+    }
+
+    $emailValidation = validateEmailAddress($emailAddr);
+    if (!$emailValidation['isValid']) {
+        return ['success' => false, 'errorMsg' => $emailValidation['errorMsg'], 'memberId' => null];
+    }
+
+    if (empty($secretKey)) {
+        return ['success' => false, 'errorMsg' => 'Password is required.', 'memberId' => null];
+    }
+
+    // Check for duplicates
+    $checkQuery = $dbConn->prepare(
+        'SELECT id FROM members WHERE account_name = :account_name OR email_address = :email_address LIMIT 1'
     );
-    $memberQuery->execute([':id' => $memberId]);
-    $memberRecord = $memberQuery->fetch();
-
-    if (!$memberRecord) {
-        return ['success' => false, 'errorMsg' => 'Member account not found.'];
+    $checkQuery->execute([':account_name' => $accountId, ':email_address' => $emailAddr]);
+    if ($checkQuery->fetch()) {
+        return ['success' => false, 'errorMsg' => 'Account name or email already registered.', 'memberId' => null];
     }
 
-    // Verify current password
-    if (!password_verify($currentSecret, $memberRecord['password_hash'])) {
-        return ['success' => false, 'errorMsg' => 'Current password is incorrect.'];
+    $hashedSecret = password_hash($secretKey, PASSWORD_ALGO, PASSWORD_OPTIONS);
+    if ($hashedSecret === false) {
+        error_log('Password hashing failed during admin bulk registration');
+        return ['success' => false, 'errorMsg' => 'Registration failed.', 'memberId' => null];
     }
 
-    // Hash new password with Argon2id
-    $newHash = password_hash($newSecret, PASSWORD_ALGO, PASSWORD_OPTIONS);
-    if ($newHash === false) {
-        return ['success' => false, 'errorMsg' => 'Password update failed.'];
-    }
-
-    // Update password hash
-    $updateQuery = $dbConn->prepare(
-        'UPDATE members SET password_hash = :hash, updated_at = NOW() WHERE id = :id'
+    $insertQuery = $dbConn->prepare(
+        'INSERT INTO members (account_name, email_address, password_hash, account_balance)
+         VALUES (:account_name, :email_address, :password_hash, 100.00)'
     );
 
     try {
-        $updateQuery->execute([':hash' => $newHash, ':id' => $memberId]);
-
-        // FIX V8: Invalidate ALL existing sessions for this member immediately.
-        // If an attacker stole a session token, they lose access the moment
-        // the victim changes their password. Without this, stolen sessions
-        // remain valid for the full SESSION_TIMEOUT window.
-        $killSessionsQuery = $dbConn->prepare(
-            'DELETE FROM member_sessions WHERE member_id = :member_id'
-        );
-        $killSessionsQuery->execute([':member_id' => $memberId]);
-
-        return ['success' => true, 'errorMsg' => null];
+        $insertQuery->execute([
+            ':account_name'  => $accountId,
+            ':email_address' => $emailAddr,
+            ':password_hash' => $hashedSecret,
+        ]);
+        return ['success' => true, 'errorMsg' => null, 'memberId' => (int) $dbConn->lastInsertId()];
     } catch (PDOException $e) {
-        error_log('Password update failed: ' . $e->getMessage());
-        return ['success' => false, 'errorMsg' => 'Password update failed.'];
+        error_log('Admin bulk registration DB error: ' . $e->getMessage());
+        return ['success' => false, 'errorMsg' => 'Registration failed.', 'memberId' => null];
     }
 }
+
 ?>

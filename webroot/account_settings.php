@@ -1,7 +1,7 @@
 <?php
 /**
  * Account Settings Page
- * Allows members to update their profile and change password
+ * Allows members to update their profile bio and avatar
  */
 
 define('APP_BASE', dirname(__DIR__));
@@ -9,7 +9,6 @@ define('APP_BASE', dirname(__DIR__));
 require_once APP_BASE . '/utilities/security.php';
 require_once APP_BASE . '/utilities/session.php';
 require_once APP_BASE . '/utilities/operations.php';
-require_once APP_BASE . '/utilities/auth.php';
 require_once APP_BASE . '/utilities/validation.php';
 require_once APP_BASE . '/utilities/activity_log.php';
 
@@ -45,11 +44,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $successMsg = '';
 $errorMsg   = '';
 
-// Success message after password-change redirect
-if (isset($_GET['pwd_changed'])) {
-    $successMsg = 'Password changed successfully!';
-}
-
 // Fetch member profile
 $memberProfile = fetchMemberProfile($session['member_id']);
 if (!$memberProfile) {
@@ -65,14 +59,10 @@ if (isset($_POST['update_profile'])) {
         $errorMsg = 'Security validation failed.';
     } else {
         $bioText = trim($_POST['bio'] ?? '');
-        $emailAddr = trim($_POST['email'] ?? '');
 
         $updateData = [];
         if (!empty($bioText)) {
             $updateData['bio'] = $bioText;
-        }
-        if (!empty($emailAddr) && $emailAddr !== $memberProfile['email_address']) {
-            $updateData['email'] = $emailAddr;
         }
 
         if (!empty($updateData)) {
@@ -83,33 +73,6 @@ if (isset($_POST['update_profile'])) {
                 $memberProfile = fetchMemberProfile($session['member_id']);
             } else {
                 $errorMsg = $updateResult['errorMsg'];
-            }
-        }
-    }
-}
-
-// Handle password change
-if (isset($_POST['change_password'])) {
-    $csrfToken = $_POST['csrf_token'] ?? '';
-    if (!validateCSRFToken($csrfToken)) {
-        $errorMsg = 'Security validation failed.';
-    } else {
-        $currentSecret = $_POST['current_secret'] ?? '';
-        $newSecret = $_POST['new_secret'] ?? '';
-        $confirmSecret = $_POST['confirm_secret'] ?? '';
-
-        if ($newSecret !== $confirmSecret) {
-            $errorMsg = 'New passwords do not match.';
-        } else {
-            $changeResult = updateSecretKey($session['member_id'], $currentSecret, $newSecret);
-            if ($changeResult['success']) {
-                // updateSecretKey() deletes all sessions for security (invalidates stolen tokens).
-                // Re-create a fresh session so the user stays logged in after the change.
-                initializeNewSession($session['member_id']);
-                header('Location: /account_settings.php?pwd_changed=1');
-                exit;
-            } else {
-                $errorMsg = $changeResult['errorMsg'];
             }
         }
     }
@@ -162,12 +125,6 @@ require_once APP_BASE . '/layouts/header.php';
                 <small class="form-hint">500 characters max</small>
             </div>
 
-            <div class="form-group">
-                <label for="email" class="form-label">Email Address</label>
-                <input type="email" id="email" name="email" class="form-input"
-                       value="<?php echo escapeForHTML($memberProfile['email_address']); ?>">
-            </div>
-
             <button type="submit" class="btn btn-primary">Save Profile</button>
         </form>
     </div>
@@ -197,45 +154,6 @@ require_once APP_BASE . '/layouts/header.php';
         </form>
     </div>
 
-    <!-- Change Password -->
-    <div class="settings-card">
-        <h2 class="card-title">Change Password</h2>
-        
-        <form method="POST" action="/account_settings.php">
-            <input type="hidden" name="csrf_token" value="<?php echo escapeForHTML($csrfToken); ?>">
-            <input type="hidden" name="change_password" value="1">
-
-            <div class="form-group">
-                <label for="current_secret" class="form-label">Current Password</label>
-                <div class="password-container">
-                    <input type="password" id="current_secret" name="current_secret" 
-                           class="form-input" required maxlength="72">
-                    <button type="button" class="password-toggle">Show</button>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="new_secret" class="form-label">New Password</label>
-                <div class="password-container">
-                    <input type="password" id="new_secret" name="new_secret" 
-                           class="form-input" required maxlength="72"
-                           placeholder="Min 8 chars: uppercase, lowercase, digit, special">
-                    <button type="button" class="password-toggle">Show</button>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label for="confirm_secret" class="form-label">Confirm New Password</label>
-                <div class="password-container">
-                    <input type="password" id="confirm_secret" name="confirm_secret" 
-                           class="form-input" required maxlength="72">
-                    <button type="button" class="password-toggle">Show</button>
-                </div>
-            </div>
-
-            <button type="submit" class="btn btn-primary">Change Password</button>
-        </form>
-    </div>
 </div>
 
 <?php require_once APP_BASE . '/layouts/footer.php'; ?>

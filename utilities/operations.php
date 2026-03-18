@@ -297,30 +297,6 @@ function modifyMemberProfile(int $memberId, array $profileData): array {
         $bindParams[':bio'] = $sanitizedBio;
     }
 
-    // Handle email update
-    if (isset($profileData['email'])) {
-        $emailValidation = validateEmailAddress($profileData['email']);
-        if (!$emailValidation['isValid']) {
-            return ['success' => false, 'errorMsg' => $emailValidation['errorMsg']];
-        }
-
-        // Check if email is already in use
-        $checkQuery = $dbConn->prepare(
-            'SELECT id FROM members WHERE email_address = :email AND id != :member_id LIMIT 1'
-        );
-        $checkQuery->execute([
-            ':email'      => $profileData['email'],
-            ':member_id'  => $memberId
-        ]);
-
-        if ($checkQuery->fetch()) {
-            return ['success' => false, 'errorMsg' => 'Email address already in use.'];
-        }
-
-        $updateFields[] = 'email_address = :email';
-        $bindParams[':email'] = $profileData['email'];
-    }
-
     if (empty($updateFields)) {
         return ['success' => false, 'errorMsg' => 'No valid fields to update.'];
     }
