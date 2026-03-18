@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['stepup_submit'])) {
                 $_SESSION['stepup_verified_at'] = time();
                 $stepupVerified = true;
                 // Redirect to GET so refreshing does not re-submit the password form
-                header('Location: /transfer.php' . (isset($_GET['to']) ? '?to=' . (int)$_GET['to'] : ''));
+                header('Location: /transfer.php' . (isset($_GET['to']) && is_string($_GET['to']) ? '?to=' . (int)$_GET['to'] : ''));
                 exit;
             } else {
                 // Record failed step-up attempt for rate limiting
@@ -124,7 +124,7 @@ if (!$stepupVerified) {
                 <div class="alert alert-error"><?php echo escapeForHTML($stepupError); ?></div>
             <?php endif; ?>
 
-            <form method="POST" action="/transfer.php<?php echo isset($_GET['to']) ? '?to=' . (int)$_GET['to'] : ''; ?>">
+            <form method="POST" action="/transfer.php<?php echo (isset($_GET['to']) && is_string($_GET['to'])) ? '?to=' . (int)$_GET['to'] : ''; ?>">
                 <input type="hidden" name="csrf_token" value="<?php echo escapeForHTML($csrfToken); ?>">
                 <input type="hidden" name="stepup_submit" value="1">
 
@@ -158,8 +158,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $errorMsg = 'Security validation failed.';
     } else {
-        $transferToken = trim($_POST['transfer_token'] ?? '');
-        $memoText      = trim($_POST['memo_text'] ?? '');
+        $transferToken = is_string($_POST['transfer_token'] ?? null) ? trim($_POST['transfer_token']) : '';
+        $memoText      = is_string($_POST['memo_text'] ?? null) ? trim($_POST['memo_text']) : '';
 
         if (empty($transferToken)) {
             $errorMsg = 'Transfer token missing. Please ensure JavaScript is enabled.';
@@ -274,7 +274,7 @@ require_once APP_BASE . '/layouts/header.php';
                 <label for="recipient_id" class="form-label">Recipient Account ID</label>
                 <input type="number" id="recipient_id" name="recipient_id" class="form-input"
                        required placeholder="Enter recipient's account ID" min="1"
-                       value="<?php echo isset($_GET['to']) ? escapeForHTML($_GET['to']) : ''; ?>">
+                       value="<?php echo (isset($_GET['to']) && is_string($_GET['to'])) ? escapeForHTML($_GET['to']) : ''; ?>">
             </div>
 
             <div class="form-group">

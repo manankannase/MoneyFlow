@@ -22,7 +22,12 @@ if (!$session) {
 
 chroniclePageAccess('search.php', $session);
 
-$searchTerm = trim($_GET['q'] ?? '');
+$rawQ = $_GET['q'] ?? '';
+if (!is_string($rawQ)) {
+    http_response_code(400);
+    exit('Bad Request');
+}
+$searchTerm = trim($rawQ);
 $searchResults = [];
 $rateLimitError = '';
 

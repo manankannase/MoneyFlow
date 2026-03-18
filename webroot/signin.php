@@ -25,7 +25,7 @@ $errorMsg = '';
 $successMsg = '';
 
 // Check for successful signup redirect
-if (isset($_GET['signup_done']) && $_GET['signup_done'] === '1') {
+if (isset($_GET['signup_done']) && is_string($_GET['signup_done']) && $_GET['signup_done'] === '1') {
     $successMsg = 'Account created! Please sign in with your credentials.';
 }
 
@@ -35,8 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!validateCSRFToken($csrfToken)) {
         $errorMsg = 'Security validation failed. Please try again.';
     } else {
-        $accountId = trim($_POST['account_id'] ?? '');
-        $secretKey = $_POST['secret_key'] ?? '';
+        $accountId = is_string($_POST['account_id'] ?? null) ? trim($_POST['account_id']) : '';
+        $secretKey = is_string($_POST['secret_key'] ?? null) ? $_POST['secret_key'] : '';
 
         if (empty($accountId) || empty($secretKey)) {
             $errorMsg = 'Please provide both account name and password.';

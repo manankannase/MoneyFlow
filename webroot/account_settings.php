@@ -58,7 +58,7 @@ if (isset($_POST['update_profile'])) {
     if (!validateCSRFToken($csrfToken)) {
         $errorMsg = 'Security validation failed.';
     } else {
-        $bioText = trim($_POST['bio'] ?? '');
+        $bioText = is_string($_POST['bio'] ?? null) ? trim($_POST['bio']) : '';
 
         $updateData = [];
         if (!empty($bioText)) {

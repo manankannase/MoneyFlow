@@ -44,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         // FIX #21: Validate CAPTCHA before doing anything else.
         // Use == (not ===) because form input is a string; intval converts safely.
-        $captchaInput = intval($_POST['captcha_answer'] ?? -1);
+        $captchaInput = is_string($_POST['captcha_answer'] ?? null) ? intval($_POST['captcha_answer']) : -1;
         if ($captchaInput !== (int) $_SESSION['captcha_answer']) {
             $errorMsg = 'Incorrect CAPTCHA answer. Please try again.';
             // Regenerate so the same question cannot be replayed
@@ -59,9 +59,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['captcha_answer']   = $a + $b;
             $_SESSION['captcha_question'] = "What is {$a} + {$b}?";
 
-            $accountId = trim($_POST['account_id'] ?? '');
-            $emailAddr = trim($_POST['email_addr'] ?? '');
-            $secretKey = $_POST['secret_key'] ?? '';
+            $accountId = is_string($_POST['account_id'] ?? null) ? trim($_POST['account_id']) : '';
+            $emailAddr = is_string($_POST['email_addr'] ?? null) ? trim($_POST['email_addr']) : '';
+            $secretKey = is_string($_POST['secret_key'] ?? null) ? $_POST['secret_key'] : '';
 
             $registrationResult = createMemberAccount($accountId, $emailAddr, $secretKey);
 

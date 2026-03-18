@@ -22,7 +22,7 @@ if (!$session) {
 
 chroniclePageAccess('member_profile.php', $session);
 
-$profileId = intval($_GET['id'] ?? 0);
+$profileId = is_string($_GET['id'] ?? null) ? intval($_GET['id']) : 0;
 if ($profileId <= 0) {
     header('Location: /search.php');
     exit;

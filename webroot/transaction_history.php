@@ -22,7 +22,7 @@ if (!$session) {
 
 chroniclePageAccess('transaction_history.php', $session);
 
-$pageNum = intval($_GET['page'] ?? 1);
+$pageNum = is_string($_GET['page'] ?? null) ? intval($_GET['page']) : 1;
 if ($pageNum < 1) $pageNum = 1;
 // FIX #23: Cap page number to prevent huge OFFSET scans on large tables.
 // ?page=999999999 → MySQL scans ~20 billion index rows. 10,000 pages × 20 = 200,000 rows max.

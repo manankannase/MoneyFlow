@@ -60,8 +60,20 @@ if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
 }
 
 // Read and validate transfer parameters
-$recipientId = intval($_POST['recipient_id'] ?? 0);
-$amount      = round(floatval($_POST['transfer_amount'] ?? 0), 2);
+$recipientIdRaw = $_POST['recipient_id'] ?? 0;
+$amountRaw      = $_POST['transfer_amount'] ?? 0;
+if (!is_string($recipientIdRaw) && !is_int($recipientIdRaw)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid recipient ID format.']);
+    exit;
+}
+if (!is_string($amountRaw) && !is_int($amountRaw) && !is_float($amountRaw)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid amount format.']);
+    exit;
+}
+$recipientId = intval($recipientIdRaw);
+$amount      = round(floatval($amountRaw), 2);
 
 if ($recipientId <= 0) {
     http_response_code(400);
