@@ -132,6 +132,13 @@ function validateMonetaryAmount($amount): array {
         return ['isValid' => false, 'errorMsg' => 'Amount is required.'];
     }
 
+    // Strict allowlist: plain decimal only — digits with an optional dot and 1-2 decimal places.
+    // FILTER_VALIDATE_FLOAT silently accepts scientific notation (1e1, 1E+10),
+    // so we reject it here before the float check.
+    if (!preg_match('/^\d+(\.\d{1,2})?$/', (string) $amount)) {
+        return ['isValid' => false, 'errorMsg' => 'Amount must be a plain number (e.g. 10.50).'];
+    }
+
     $numericAmount = filter_var($amount, FILTER_VALIDATE_FLOAT);
     if ($numericAmount === false) {
         return ['isValid' => false, 'errorMsg' => 'Amount must be a valid number.'];

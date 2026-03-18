@@ -220,9 +220,15 @@ function initializeTransferForm() {
             return;
         }
 
+        // Allowlist: digits only, optional single dot with 1-2 decimal places.
+        // Rejects scientific notation (1e1, 1E+10), negative signs, and trailing dots.
+        if (!/^\d+(\.\d{1,2})?$/.test(amountRaw)) {
+            showTransferError('Please enter a plain number (e.g. 10.50). Scientific notation is not allowed.');
+            return;
+        }
         const numAmount = parseFloat(amountRaw);
-        if (isNaN(numAmount) || numAmount <= 0) {
-            showTransferError('Please enter a valid amount greater than 0.');
+        if (numAmount <= 0) {
+            showTransferError('Please enter an amount greater than 0.');
             return;
         }
 
