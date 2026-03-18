@@ -70,7 +70,10 @@ services:
           cpus: '1.0'
           memory: 512M
     volumes:
-      - ./:/var/www/html
+      - ./webroot:/var/www/html/webroot
+      - ./utilities:/var/www/html/utilities
+      - ./layouts:/var/www/html/layouts
+      - ./settings:/var/www/html/settings
       - ./apache.conf:/etc/apache2/sites-available/000-default.conf
     environment:
       DATABASE_HOST: db

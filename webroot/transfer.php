@@ -42,7 +42,9 @@ if (!$session) {
     exit;
 }
 
-chroniclePageAccess('transfer.php', $session);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    chroniclePageAccess('transfer.php', $session);
+}
 
 // FIX #3: Step-up re-authentication for financial operations.
 // OWASP ASVS V2.2.1 / PCI DSS 8.4: high-value actions require recent password
@@ -61,25 +63,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['stepup_submit'])) {
     if (!validateCSRFToken($_POST['csrf_token'] ?? '')) {
         $stepupError = 'Security validation failed.';
     } else {
-        $stepupPassword = $_POST['stepup_password'] ?? '';
-        // Re-verify password against stored hash (reuses authenticateCredentials logic
-        // but we only need the hash check — fetch hash directly to avoid logging a
-        // "failed attempt" for a legitimate user doing step-up)
-        $dbConn = getPDOConnection();
-        $hashQuery = $dbConn->prepare(
-            'SELECT password_hash FROM members WHERE id = :id LIMIT 1'
-        );
-        $hashQuery->execute([':id' => $session['member_id']]);
-        $memberRecord = $hashQuery->fetch();
+        $dbConn        = getPDOConnection();
+        $clientIP      = retrieveClientIPAddress();
+        $stepupRateKey = 'stepup:' . $session['member_id'];
 
-        if ($memberRecord && password_verify($stepupPassword, $memberRecord['password_hash'])) {
-            $_SESSION['stepup_verified_at'] = time();
-            $stepupVerified = true;
-            // Redirect to GET so refreshing does not re-submit the password form
-            header('Location: /transfer.php' . (isset($_GET['to']) ? '?to=' . (int)$_GET['to'] : ''));
-            exit;
+        // Rate limit step-up: max 5 wrong attempts per IP per 15 minutes.
+        // Uses the same failed_auth_attempts table as login to avoid schema changes.
+        $stepupRateQuery = $dbConn->prepare(
+            'SELECT COUNT(*) as attempt_count FROM failed_auth_attempts
+             WHERE ip_address  = :ip
+               AND account_name = :key
+               AND created_at  > DATE_SUB(NOW(), INTERVAL 900 SECOND)'
+        );
+        $stepupRateQuery->bindValue(':ip',  $clientIP);
+        $stepupRateQuery->bindValue(':key', $stepupRateKey);
+        $stepupRateQuery->execute();
+
+        if ((int) $stepupRateQuery->fetch()['attempt_count'] >= 5) {
+            $stepupError = 'Too many incorrect attempts. Please wait 15 minutes before trying again.';
         } else {
-            $stepupError = 'Incorrect password. Please try again.';
+            $stepupPassword = $_POST['stepup_password'] ?? '';
+            $hashQuery = $dbConn->prepare(
+                'SELECT password_hash FROM members WHERE id = :id LIMIT 1'
+            );
+            $hashQuery->execute([':id' => $session['member_id']]);
+            $memberRecord = $hashQuery->fetch();
+
+            if ($memberRecord && password_verify($stepupPassword, $memberRecord['password_hash'])) {
+                $_SESSION['stepup_verified_at'] = time();
+                $stepupVerified = true;
+                // Redirect to GET so refreshing does not re-submit the password form
+                header('Location: /transfer.php' . (isset($_GET['to']) ? '?to=' . (int)$_GET['to'] : ''));
+                exit;
+            } else {
+                // Record failed step-up attempt for rate limiting
+                $dbConn->prepare(
+                    'INSERT INTO failed_auth_attempts (ip_address, account_name) VALUES (:ip, :key)'
+                )->execute([':ip' => $clientIP, ':key' => $stepupRateKey]);
+                $stepupError = 'Incorrect password. Please try again.';
+            }
         }
     }
 }

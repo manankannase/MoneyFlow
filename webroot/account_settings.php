@@ -23,6 +23,25 @@ if (!$session) {
 
 chroniclePageAccess('account_settings.php', $session);
 
+// Rate limit POST requests: block if more than 60 accesses in the last 15 minutes.
+// The counter includes GET visits (each page load adds one entry), so the threshold
+// is set high enough that a normal user navigating back and forth won't be blocked,
+// while still stopping automated flood attacks.
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $dbConn = getPDOConnection();
+    $rateLimitStmt = $dbConn->prepare(
+        'SELECT COUNT(*) FROM event_chronicle
+         WHERE member_id = :member_id
+           AND page_path = :page
+           AND access_timestamp > DATE_SUB(NOW(), INTERVAL 15 MINUTE)'
+    );
+    $rateLimitStmt->execute([':member_id' => $session['member_id'], ':page' => 'account_settings.php']);
+    if ((int) $rateLimitStmt->fetchColumn() >= 60) {
+        http_response_code(429);
+        exit('Too many requests. Please wait before making further changes.');
+    }
+}
+
 $successMsg = '';
 $errorMsg   = '';
 

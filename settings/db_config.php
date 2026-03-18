@@ -6,9 +6,29 @@
  * All database interactions across the application MUST employ parameterized queries.
  */
 
-define('DATABASE_HOST', getenv('DATABASE_HOST') ?: 'db');
-define('DATABASE_NAME', getenv('DATABASE_NAME') ?: 'moneyflow_db');
-define('DATABASE_USER', getenv('DATABASE_USER') ?: 'moneyflow_admin');
+$_dbHostCheck = getenv('DATABASE_HOST');
+if (!$_dbHostCheck) {
+    error_log('FATAL: DATABASE_HOST environment variable is not set.');
+    exit('Server configuration error.');
+}
+define('DATABASE_HOST', $_dbHostCheck);
+unset($_dbHostCheck);
+
+$_dbNameCheck = getenv('DATABASE_NAME');
+if (!$_dbNameCheck) {
+    error_log('FATAL: DATABASE_NAME environment variable is not set.');
+    exit('Server configuration error.');
+}
+define('DATABASE_NAME', $_dbNameCheck);
+unset($_dbNameCheck);
+
+$_dbUserCheck = getenv('DATABASE_USER');
+if (!$_dbUserCheck) {
+    error_log('FATAL: DATABASE_USER environment variable is not set.');
+    exit('Server configuration error.');
+}
+define('DATABASE_USER', $_dbUserCheck);
+unset($_dbUserCheck);
 
 // FIX V4: No hardcoded fallback password. If DATABASE_PASS is not set, fail hard.
 // Opponents receive your source code; any fallback is immediately known to them.

@@ -55,8 +55,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Log page access
-chroniclePageAccess('signin.php', null);
+// Log generic page access only on GET — POST already logged the outcome above
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    chroniclePageAccess('signin.php', null);
+}
 
 $csrfToken = produceCSRFToken();
 
