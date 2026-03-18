@@ -204,6 +204,14 @@ function validateAvatarUpload(array $fileData): array {
         return ['isValid' => false, 'errorMsg' => 'File is not a valid image.'];
     }
 
+    // Reject oversized dimensions before GD re-encoding.
+    // GD loads the full pixel buffer into memory: 7680×4320×4 bytes ≈ 126 MB,
+    // which exhausts PHP's memory_limit and causes a fatal error → HTTP 500.
+    // 4000×4000 is generous for a profile picture and keeps GD well within limits.
+    if ($imageInfo[0] > 4000 || $imageInfo[1] > 4000) {
+        return ['isValid' => false, 'errorMsg' => 'Image dimensions must not exceed 4000×4000 pixels.'];
+    }
+
     return ['isValid' => true, 'errorMsg' => null];
 }
 
