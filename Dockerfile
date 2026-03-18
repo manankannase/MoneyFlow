@@ -69,6 +69,8 @@ disable_functions = system,exec,shell_exec,passthru,proc_open,popen,\
 curl_exec,curl_multi_exec,parse_ini_file,show_source,phpinfo,\
 mail,pcntl_exec,dl,putenv,proc_nice,proc_get_status\n\
 expose_php = Off\n\
+display_errors = Off\n\
+log_errors = On\n\
 open_basedir = /var/www/html:/tmp\n\
 " > /usr/local/etc/php/conf.d/security-hardening.ini
 

@@ -71,6 +71,7 @@ services:
           memory: 512M
     volumes:
       - ./webroot:/var/www/html/webroot
+      - avatars_volume:/var/www/html/webroot/uploads/avatars
       - ./utilities:/var/www/html/utilities
       - ./layouts:/var/www/html/layouts
       - ./settings:/var/www/html/settings
@@ -99,3 +100,7 @@ services:
 
 volumes:
   db_volume:
+  # Named volume for avatar uploads — keeps www-data ownership set in Dockerfile intact.
+  # A bind-mount on ./webroot would overwrite the image's chown at runtime, causing
+  # "Permission denied" from move_uploaded_file(). Named volumes preserve image permissions.
+  avatars_volume:
