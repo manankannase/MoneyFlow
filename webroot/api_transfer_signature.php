@@ -73,7 +73,6 @@ if (!is_string($amountRaw) && !is_int($amountRaw) && !is_float($amountRaw)) {
     exit;
 }
 $recipientId = intval($recipientIdRaw);
-$amount      = round(floatval($amountRaw), 2);
 
 if ($recipientId <= 0) {
     http_response_code(400);
@@ -81,18 +80,17 @@ if ($recipientId <= 0) {
     exit;
 }
 
-if ($amount <= 0) {
-    http_response_code(400);
-    echo json_encode(['error' => 'Amount must be greater than zero.']);
-    exit;
-}
-
-$amountValidation = validateMonetaryAmount($amount);
+// Validate the raw string BEFORE floatval() — floatval('1e1') silently becomes 10.0,
+// which would then pass the plain-decimal regex in validateMonetaryAmount.
+$amountValidation = validateMonetaryAmount($amountRaw);
 if (!$amountValidation['isValid']) {
     http_response_code(400);
     echo json_encode(['error' => $amountValidation['errorMsg']]);
     exit;
 }
+
+// Safe to convert now — raw string has passed the plain-decimal allowlist check.
+$amount = round(floatval($amountRaw), 2);
 
 if ($recipientId === $session['member_id']) {
     http_response_code(400);
