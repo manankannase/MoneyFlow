@@ -75,6 +75,7 @@ services:
       - ./layouts:/var/www/html/layouts
       - ./settings:/var/www/html/settings
       - ./apache.conf:/etc/apache2/sites-available/000-default.conf
+      - ./create_accounts.php:/var/www/html/create_accounts.php
     environment:
       DATABASE_HOST: db
       DATABASE_NAME: moneyflow_db
