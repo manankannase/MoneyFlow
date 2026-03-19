@@ -28,7 +28,9 @@ RUN mkdir -p /etc/apache2/ssl && \
     -keyout /etc/apache2/ssl/selfsigned.key \
     -out /etc/apache2/ssl/selfsigned.crt \
     -subj "/C=US/ST=State/L=City/O=MoneyFlow/OU=Dev/CN=localhost" \
-    -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" && \
+    -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
+    -addext "basicConstraints=critical,CA:FALSE" \
+    -addext "keyUsage=critical,digitalSignature,keyEncipherment" && \
     chmod 600 /etc/apache2/ssl/selfsigned.key && \
     chmod 644 /etc/apache2/ssl/selfsigned.crt
 
