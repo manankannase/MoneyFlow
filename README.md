@@ -16,11 +16,11 @@
 
 | Member | Domain | Lines of Code |
 |--------|--------|------:|
-| **member_1** | Authentication & Security | **1,094** |
-| **member_2** | DevOps & Core Operations | **1,017** |
-| **member_3** | Database, Logging & Docs | **1,089** |
-| **member_4** | Frontend & CSS | **1,196** |
-| **member_5** | Transactions & JavaScript | **1,113** |
+| **Manan Kannasey** | Authentication & Security | **1,094** |
+| **Hemang Ranga** | DevOps & Core Operations | **1,017** |
+| **Rohit B** | Database, Logging & Docs | **1,089** |
+| **Yash Vardhan** | Frontend & CSS | **1,196** |
+| **Deependra Singh** | Transactions & JavaScript | **1,113** |
 
 ---
 
