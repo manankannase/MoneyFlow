@@ -5,12 +5,12 @@
  * Handles member account creation, login verification, and credential management.
  *
  * Security Features:
- * - Passwords hashed using bcrypt with cost factor 12
+ * - Passwords hashed using Argon2id (memory-hard, 64MB, 4 passes)
  * - Timing-safe password verification prevents timing attacks
- * - Rate limiting on login attempts per IP address
+ * - Dual rate limiting: per-IP and per-account (catches IP rotation)
  * - Generic error messages prevent username enumeration attacks
+ * - Auto-upgrade legacy bcrypt hashes to Argon2id on login
  * - No sensitive information leaked in error responses
- */
 
 require_once __DIR__ . '/../settings/db_config.php';
 require_once __DIR__ . '/validation.php';
