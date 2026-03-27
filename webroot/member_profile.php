@@ -22,7 +22,22 @@ if (!$session) {
 
 chroniclePageAccess('member_profile.php', $session);
 
+// Rate limit: max 30 profile views per minute per user to prevent ID enumeration
+$dbConn = getPDOConnection();
+$profileRateStmt = $dbConn->prepare(
+    'SELECT COUNT(*) FROM event_chronicle
+     WHERE member_id = :mid
+       AND page_path = :page
+       AND access_timestamp > DATE_SUB(NOW(), INTERVAL 1 MINUTE)'
+);
+$profileRateStmt->execute([':mid' => $session['member_id'], ':page' => 'member_profile.php']);
+if ((int) $profileRateStmt->fetchColumn() >= 30) {
+    http_response_code(429);
+    exit('Too many requests. Please slow down.');
+}
+
 $profileId = is_string($_GET['id'] ?? null) ? intval($_GET['id']) : 0;
+
 if ($profileId <= 0) {
     header('Location: /search.php');
     exit;
