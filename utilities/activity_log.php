@@ -25,6 +25,8 @@ function chroniclePageAccess(string $pageUri, ?array $sessionData = null): void 
         $accountId  = $sessionData['account_name'] ?? null;
         $clientIP   = retrieveClientIPAddress();
         $userAgent  = $_SERVER['HTTP_USER_AGENT'] ?? 'unidentified_agent';
+        // Sanitize to prevent stored XSS if logs are ever displayed in an admin panel
+        $userAgent  = htmlspecialchars($userAgent, ENT_QUOTES | ENT_HTML5, 'UTF-8'); 
 
         // Prevent overly long user-agent strings
         if (mb_strlen($userAgent, 'UTF-8') > 500) {
