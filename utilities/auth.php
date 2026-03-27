@@ -95,14 +95,20 @@ function createMemberAccount(string $accountId, string $emailAddr, string $secre
         ':email_address'  => $emailAddr
     ]);
 
-    if ($checkQuery->fetch()) {
+     if ($checkQuery->fetch()) {
+        // FIX: Run a dummy hash to eliminate timing difference.
+        // Without this, "username taken" returns in ~5ms (no hashing) while
+        // "username free" takes ~1.5s (Argon2id runs). Attackers measure the
+        // difference to enumerate valid usernames.
+        password_hash('timing_equalizer', PASSWORD_ALGO, PASSWORD_OPTIONS);
+
         // Generic message prevents user enumeration attacks
         return [
             'success'   => false,
             'errorMsg'  => 'Account name or email already registered.',
             'memberId'  => null
         ];
-    }
+    } 
 
     // Hash password using Argon2id
     $hashedSecret = password_hash($secretKey, PASSWORD_ALGO, PASSWORD_OPTIONS);
