@@ -15,7 +15,7 @@
 </head>
 <body>
     <div class="app-wrapper">
-        <?php if ($session = validateActiveSession()): ?>
+          <?php if (isset($session) && $session): ?> 
         <header class="navbar">
             <div class="navbar-content">
                 <h2 class="navbar-brand">
