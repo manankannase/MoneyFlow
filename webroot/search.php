@@ -32,6 +32,10 @@ $searchResults = [];
 $rateLimitError = '';
 
 if (strlen($searchTerm) >= 1) {
+    // Enforce minimum search length to prevent single-letter wildcard dumps
+    if (strlen($searchTerm) < 2) {
+        $rateLimitError = 'Search term must be at least 2 characters.';
+    } else {
     // SECURITY FIX: Per-IP rate limiting on search (max 10 per minute)
     $clientIp = $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
     $dbConn = getPDOConnection();
@@ -54,7 +58,8 @@ if (strlen($searchTerm) >= 1) {
     } else {
         // SECURITY FIX: Limit results to 5 per search (reduces UNION-style data harvesting)
         $searchResults = discoverMembers($searchTerm, 5);
-    }
+   }
+    } 
 }
 
 $pageTitle = 'Find Members';
