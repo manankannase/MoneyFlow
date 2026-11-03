@@ -1,60 +1,83 @@
+# =============================================================
+# MoneyFlow Docker Compose — Hardened Configuration
+# =============================================================
+# NOTE: 'version' key is omitted (deprecated in modern Compose).
+# All secrets are loaded from .env file — see .env.example.
+# =============================================================
+
 services:
   db:
-    image: mysql:8.4@sha256:76f0358884cb92d9a086d24e5671c38048d3fef40f2588703d73eb55392d6b69
+    image: mysql:8.0
+    container_name: moneyflow-database
+    restart: always
     environment:
-      MYSQL_DATABASE: moneyflow_db
-      MYSQL_USER: moneyflow_app
-      MYSQL_PASSWORD_FILE: /run/secrets/db_password
-      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db_root_password
-    secrets: [db_password, db_root_password]
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD}"
+      MYSQL_DATABASE: "${MYSQL_DATABASE}"
+      MYSQL_USER: "${MYSQL_USER}"
+      MYSQL_PASSWORD: "${MYSQL_PASSWORD}"
+    # SECURITY: Do NOT expose MySQL port to host.
+    # Only the web service needs access via the internal network.
     volumes:
-      - db_data:/var/lib/mysql
-      - ./init.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./deploy/grants.sql:/docker-entrypoint-initdb.d/02-grants.sql:ro
-    networks: [backend]
+      - db_volume:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: [CMD-SHELL, 'MYSQL_PWD=$$(cat /run/secrets/db_root_password) mysql -uroot -Nse "SELECT version FROM moneyflow_db.schema_version" | grep -qx 2']
-      interval: 5s
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       timeout: 5s
-      retries: 30
-    security_opt: [no-new-privileges:true]
-    mem_limit: 768m
-    cpus: 1.0
-    restart: unless-stopped
+      retries: 10
+      interval: 10s
+      start_period: 30s
+    networks:
+      - moneyflow-net
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+        reservations:
+          memory: 256M
+
   web:
-    build: .
-    environment:
-      APP_ENV: ${APP_ENV:-development}
-      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:8080}
-      DATABASE_HOST: db
-      DATABASE_NAME: moneyflow_db
-      DATABASE_USER: moneyflow_app
-      DATABASE_PASS_FILE: /run/secrets/db_password
-      HMAC_SECRET_FILE: /run/secrets/app_key
-    secrets: [db_password, app_key]
-    ports: ["127.0.0.1:${WEB_PORT:-8080}:8080"]
-    volumes: [avatars:/var/lib/moneyflow/avatars]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: moneyflow-webserver
+    restart: always
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    volumes:
+      - ./:/var/www/html:ro
+      - ./apache.conf:/etc/apache2/sites-available/000-default.conf:ro
+      - ./webroot/uploads:/var/www/html/webroot/uploads
     tmpfs:
-      - /tmp:rw,noexec,nosuid,size=32m,uid=33,gid=33
-      - /var/run/apache2:rw,noexec,nosuid,size=4m,uid=33,gid=33
-      - /var/lock/apache2:rw,noexec,nosuid,size=4m,uid=33,gid=33
-    read_only: true
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    mem_limit: 256m
-    cpus: 1.0
-    pids_limit: 100
-    networks: [backend, frontend]
+      - /tmp:noexec,nosuid,size=64M
+      - /run:noexec,nosuid,size=64M
+    environment:
+      DATABASE_HOST: "${DATABASE_HOST}"
+      DATABASE_NAME: "${DATABASE_NAME}"
+      DATABASE_USER: "${DATABASE_USER}"
+      DATABASE_PASS: "${DATABASE_PASS}"
+      HMAC_SECRET: "${HMAC_SECRET}"
+      APP_ENV: "${APP_ENV:-production}"
     depends_on:
-      db: {condition: service_healthy}
-    restart: unless-stopped
-secrets:
-  db_password: {file: ./.secrets/db_password}
-  db_root_password: {file: ./.secrets/db_root_password}
-  app_key: {file: ./.secrets/app_key}
+      db:
+        condition: service_healthy
+    networks:
+      - moneyflow-net
+    security_opt:
+      - no-new-privileges:true
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+
 networks:
-  backend: {internal: true}
-  frontend: {}
+  moneyflow-net:
+    driver: bridge
+
 volumes:
-  db_data: {}
-  avatars: {}
+  db_volume:
