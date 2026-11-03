@@ -1,41 +1,13 @@
-# =============================================================
-# MoneyFlow .gitignore
-# =============================================================
-
-# Environment secrets — NEVER commit
+# Environment secrets
 .env
+*.env
+.claude/
 
-# Database volume data
-db_volume/
+# Uploaded user files
+webroot/uploads/
 
-# Uploaded files (keep directory structure via .gitkeep)
-webroot/uploads/avatars/*
-!webroot/uploads/avatars/.gitkeep
-
-# Log files
-*.log
-logs/
-
-# OS files
+# OS / editor noise
 .DS_Store
 Thumbs.db
-desktop.ini
-
-# Editor / IDE files
 *.swp
 *.swo
-*.swn
-*~
-.vscode/
-.idea/
-*.sublime-project
-*.sublime-workspace
-
-# Dependencies (if added later)
-node_modules/
-vendor/
-
-# Temporary files
-*.tmp
-*.bak
-*.orig
