@@ -1,34 +1,18 @@
-# =============================================================
-# MoneyFlow .dockerignore
-# =============================================================
-
-# Secrets — must not be baked into image
+# Secrets — never bake into image layers
 .env
-.env.example
+*.env
 
 # Git metadata
 .git
 .gitignore
 
-# Documentation (not needed in runtime image)
+# Self-signed certs are COPY'd explicitly in the Dockerfile.
+# Exclude everything else that is not needed at build time.
 *.md
-LICENSE
+*.sh
 
-# Docker files (not needed inside container)
-docker-compose.yml
-docker-compose.yaml
-.dockerignore
-
-# Database volume
-db_volume/
-
-# OS / Editor artifacts
+# OS / editor noise
 .DS_Store
 Thumbs.db
 *.swp
 *.swo
-.vscode/
-.idea/
-
-# CI/CD
-.github/
